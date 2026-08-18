@@ -142,7 +142,6 @@
             margin-top: 20px; 
             width: 90vw;
             max-width: 1200px;
-            height: 60px; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -153,7 +152,9 @@
         .start-controls { 
             display: flex; 
             align-items: center; 
-            gap: 20px; 
+            gap: 15px; 
+            flex-wrap: wrap;
+            justify-content: center;
         } 
         
         .start-controls.hidden { display: none; }
@@ -166,6 +167,17 @@
             padding: 8px 20px;
             border-radius: 20px;
             align-items: center;
+        }
+
+        #camera-select {
+            background: #1e1e1e;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 1rem;
+            outline: none;
+            cursor: pointer;
         }
 
         .game-btn { 
@@ -196,10 +208,11 @@
             <p style="text-align: center; margin-top: 25px;">
                 <span class="highlight">📸 찰칵하는 순간!<br>빨간 네모 안에 있는 사람은 성공! 🎉</span>
             </p>
-            <button class="modal-btn" onclick="closeTutorial()">좋아요!</button>
+            <button class="modal-btn" onclick="closeTutorial()">좋아요 😍</button>
         </div>
     </div>
 
+    <!-- 메인 게임 영역 -->
     <div id="container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
@@ -209,6 +222,8 @@
 
     <div class="controls">
         <div id="start-controls" class="start-controls">
+            <select id="camera-select" onchange="changeCamera()"></select>
+
             <div class="option-row">
                 <span>네모 사이즈:</span>
                 <label><input type="radio" name="size" value="180" onchange="changeSize(180)"> 작게</label>
@@ -229,26 +244,70 @@
         const countdownEl = document.getElementById('countdown');
         const container = document.getElementById('container');
         const tutorialModal = document.getElementById('tutorial-modal');
+        const cameraSelect = document.getElementById('camera-select');
 
         let currentSize = 250;
         let gameRunning = false;
+        let currentStream = null;
 
         function closeTutorial() {
             tutorialModal.style.display = 'none';
         }
 
-        async function initCamera() {
+        async function getCameras() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 1280 }, height: { ideal: 960 } } 
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                tempStream.getTracks().forEach(track => track.stop());
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `카메라 ${index + 1}`;
+                    cameraSelect.appendChild(option);
                 });
+
+                if (videoDevices.length > 0) {
+                    initCamera(videoDevices[0].deviceId);
+                } else {
+                    alert("연결된 카메라를 찾을 수 없습니다.");
+                }
+            } catch (e) {
+                alert("웹캠 권한이 필요합니다. 브라우저 설정에서 카메라 접근을 허용해주세요.");
+            }
+        }
+
+        async function initCamera(deviceId) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: { ideal: 1280 },
+                    height: { ideal: 960 }
+                }
+            };
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
                 videoElement.srcObject = stream;
                 videoElement.onloadedmetadata = () => { 
                     updateContainerSize(); 
                 };
             } catch (e) {
-                alert("웹캠 권한이 필요합니다. 브라우저 설정에서 카메라 접근을 허용해주세요.");
+                console.error("카메라 변경 실패:", e);
             }
+        }
+
+        function changeCamera() {
+            const selectedDeviceId = cameraSelect.value;
+            initCamera(selectedDeviceId);
         }
 
         function updateContainerSize() {
@@ -373,7 +432,7 @@
             if (!gameRunning) updateContainerSize();
         });
 
-        initCamera();
+        getCameras();
     </script>
 </body>
 </html>
