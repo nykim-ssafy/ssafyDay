@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🟥 RED BOX GAME 🟥</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>❤️ RED BOX GAME ❤️</title>
     <style>
         body { 
             margin: 0; 
@@ -18,13 +18,10 @@
             overflow: hidden; 
         }
 
-        h2 { margin: 0 0 10px 0; font-size: 1.5rem; }
-
         #container { 
             position: relative; 
-            width: 90vw; 
-            max-width: 800px; 
-            aspect-ratio: 4 / 3;
+            width: 800px; 
+            height: 600px; 
             border-radius: 16px; 
             overflow: hidden; 
             background-color: #000; 
@@ -37,12 +34,8 @@
             left: 0; 
             width: 100%; 
             height: 100%; 
-            object-fit: fill; 
+            object-fit: cover; 
             transform: scaleX(-1);
-        }
-
-        video.environment-facing, canvas.environment-facing { 
-            transform: scaleX(1) !important; 
         }
 
         #zoomed-canvas { 
@@ -77,56 +70,51 @@
         }
 
         #countdown { 
-            font-size: 10vw; 
+            font-size: 100px; 
             font-weight: bold; 
             color: #ff4757; 
             text-shadow: 0 5px 15px rgba(0,0,0,0.9);
         }
 
         .controls { 
-            margin-top: 15px; 
-            width: 100%;
-            max-width: 800px;
-            height: 110px;
+            margin-top: 20px; 
+            width: 800px;
+            height: 70px; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: flex-start;
-            gap: 8px; 
+            gap: 10px; 
         }
         
         .start-controls { 
             display: flex; 
-            flex-direction: column; 
             align-items: center; 
-            gap: 8px; 
-            width: 100%;
+            gap: 20px; 
         }
         
         .start-controls.hidden { display: none; }
 
         .option-row {
             display: flex;
-            gap: 12px;
-            font-size: 0.95rem;
+            gap: 15px;
+            font-size: 1.05rem;
             background: #1e1e1e;
-            padding: 6px 15px;
+            padding: 8px 20px;
             border-radius: 20px;
             align-items: center;
         }
 
-        #mobile-options { display: none; }
-        #mobile-options.show { display: flex; }
-
         .game-btn { 
-            padding: 10px 30px; 
-            font-size: 1.1rem; 
+            padding: 10px 35px; 
+            font-size: 1.15rem; 
             font-weight: bold; 
             color: white; 
             border: none; 
             border-radius: 30px; 
             cursor: pointer; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
         }
         .game-btn:active { transform: scale(0.95); }
         
@@ -136,7 +124,6 @@
 </head>
 <body>
 
-    <h2>🟥 RED BOX GAME 🟥</h2>
     <div id="container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
@@ -147,22 +134,10 @@
     <div class="controls">
         <div id="start-controls" class="start-controls">
             <div class="option-row">
-                <span>기기:</span>
-                <label><input type="radio" name="device" value="pc" checked onchange="switchDevice()"> PC</label>
-                <label><input type="radio" name="device" value="mobile" onchange="switchDevice()"> 모바일</label>
-            </div>
-
-            <div id="mobile-options" class="option-row">
-                <span>카메라:</span>
-                <label><input type="radio" name="camera" value="user" checked onchange="switchCamera()"> 전면</label>
-                <label><input type="radio" name="camera" value="environment" onchange="switchCamera()"> 후면</label>
-            </div>
-
-            <div class="option-row">
-                <span>사이즈:</span>
-                <label><input type="radio" name="size" value="20" onchange="changeSize(20)"> 작게</label>
-                <label><input type="radio" name="size" value="30" checked onchange="changeSize(30)"> 보통</label>
-                <label><input type="radio" name="size" value="40" onchange="changeSize(40)"> 크게</label>
+                <span>네모 사이즈:</span>
+                <label><input type="radio" name="size" value="180" onchange="changeSize(180)"> 작게</label>
+                <label><input type="radio" name="size" value="250" checked onchange="changeSize(250)"> 보통</label>
+                <label><input type="radio" name="size" value="320" onchange="changeSize(320)"> 크게</label>
             </div>
 
             <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
@@ -179,105 +154,51 @@
         const resetBtn = document.getElementById('reset-btn');
         const countdownEl = document.getElementById('countdown');
         const container = document.getElementById('container');
-        const mobileOptions = document.getElementById('mobile-options');
 
-        let currentSizePercent = 30; 
+        let currentSize = 250;
         let gameRunning = false;
-        let currentFacingMode = 'user';
 
+        // PC 웹캠 초기화
         async function initCamera() {
             try {
-                if (!videoElement.srcObject) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
-                    });
-                    videoElement.srcObject = stream;
-                }
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 1280 }, height: { ideal: 960 } } 
+                });
+                videoElement.srcObject = stream;
                 videoElement.onloadedmetadata = () => { 
                     showCenterPreview(); 
                 };
             } catch (e) {
-                alert("카메라 권한이 필요합니다.");
+                alert("웹캠 권한이 필요합니다.");
             }
-        }
-
-        function switchDevice() {
-            const deviceType = document.querySelector('input[name="device"]:checked').value;
-            if (deviceType === 'pc') {
-                mobileOptions.classList.remove('show');
-                setCameraMode('user');
-            } else {
-                mobileOptions.classList.add('show');
-                switchCamera();
-            }
-        }
-
-        function switchCamera() {
-            const selectedCamera = document.querySelector('input[name="camera"]:checked').value;
-            setCameraMode(selectedCamera);
-        }
-
-        async function setCameraMode(facingMode) {
-            currentFacingMode = facingMode;
-
-            if (facingMode === 'environment') {
-                videoElement.classList.add('environment-facing');
-                zoomedCanvas.classList.add('environment-facing');
-            } else {
-                videoElement.classList.remove('environment-facing');
-                zoomedCanvas.classList.remove('environment-facing');
-            }
-
-            try {
-                if (videoElement.srcObject) {
-                    videoElement.srcObject.getTracks().forEach(track => track.stop());
-                }
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } 
-                });
-                videoElement.srcObject = stream;
-                videoElement.onloadedmetadata = () => { showCenterPreview(); };
-            } catch (err) {
-                initCamera();
-            }
-        }
-
-        function getBoxSizePx() {
-            return container.clientWidth * (currentSizePercent / 100);
         }
 
         function showCenterPreview() {
             if (gameRunning) return;
-            const boxSize = getBoxSizePx();
-            targetBox.style.width = boxSize + 'px';
-            targetBox.style.height = boxSize + 'px';
-            targetBox.style.left = `calc(50% - ${boxSize / 2}px)`;
-            targetBox.style.top = `calc(50% - ${boxSize / 2}px)`;
+            targetBox.style.width = currentSize + 'px';
+            targetBox.style.height = currentSize + 'px';
+            targetBox.style.left = `calc(50% - ${currentSize / 2}px)`;
+            targetBox.style.top = `calc(50% - ${currentSize / 2}px)`;
             targetBox.style.display = 'block';
         }
 
-        function changeSize(percent) {
-            currentSizePercent = percent;
+        function changeSize(size) {
+            currentSize = parseInt(size);
             showCenterPreview();
         }
 
-        window.addEventListener('resize', () => {
-            if (!gameRunning) showCenterPreview();
-        });
-
         async function startGame() {
             gameRunning = true;
-            startControls.classList.add('hidden'); 
+            startControls.classList.add('hidden');
 
-            const boxSize = getBoxSizePx();
-            const maxX = container.clientWidth - boxSize;
-            const maxY = container.clientHeight - boxSize;
+            const maxX = 800 - currentSize;
+            const maxY = 600 - currentSize;
             
             const randomX = Math.floor(Math.random() * maxX);
             const randomY = Math.floor(Math.random() * maxY);
 
-            targetBox.style.width = boxSize + 'px';
-            targetBox.style.height = boxSize + 'px';
+            targetBox.style.width = currentSize + 'px';
+            targetBox.style.height = currentSize + 'px';
             targetBox.style.left = randomX + 'px';
             targetBox.style.top = randomY + 'px';
             targetBox.style.display = 'block';
@@ -290,35 +211,29 @@
             await new Promise(r => setTimeout(r, 500));
             countdownEl.textContent = "";
 
-            performZoom(randomX, randomY, boxSize);
+            performZoom(randomX, randomY);
         }
 
-        function performZoom(visualX, visualY, boxSize) {
+        function performZoom(x, y) {
             videoElement.style.display = 'none';
             targetBox.style.display = 'none';
 
             const nativeW = videoElement.videoWidth || 1280;
-            const nativeH = videoElement.videoHeight || 720;
+            const nativeH = videoElement.videoHeight || 960;
             
-            const scaleX = nativeW / container.clientWidth;
-            const scaleY = nativeH / container.clientHeight;
+            const scaleX = nativeW / 800;
+            const scaleY = nativeH / 600;
 
-            const nativeCropSize = boxSize * scaleX;
-            let nativeX = visualX * scaleX;
-            const nativeY = visualY * scaleY;
-
-            if (currentFacingMode === 'user') {
-                nativeX = nativeW - nativeX - nativeCropSize;
-            }
+            const nativeCropSize = currentSize * scaleX;
+            let nativeX = nativeW - (x * scaleX) - nativeCropSize; 
+            const nativeY = y * scaleY;
 
             zoomedCanvas.width = nativeCropSize;
             zoomedCanvas.height = nativeCropSize;
             const ctx = zoomedCanvas.getContext('2d');
 
-            if (currentFacingMode === 'user') {
-                ctx.translate(zoomedCanvas.width, 0);
-                ctx.scale(-1, 1);
-            }
+            ctx.translate(zoomedCanvas.width, 0);
+            ctx.scale(-1, 1);
 
             ctx.drawImage(
                 videoElement, 
@@ -340,6 +255,7 @@
             showCenterPreview();
         }
 
+        // 실행
         initCamera();
     </script>
 </body>
