@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>빨간 네모 맞추기 게임</title>
+    <title>🟥 RED BOX GAME 🟥</title>
     <style>
         body { 
             margin: 0; 
@@ -20,11 +20,10 @@
 
         h2 { margin: 5px 0 15px 0; font-size: 1.8rem; }
 
-        /* 화면의 약 90%를 채우면서 4:3 비율을 유지하는 스마트 컨테이너 */
         #container { 
             position: relative; 
             width: 90vw; 
-            max-width: calc(75vh * (4/3)); /* 세로가 너무 길어지는 것 방지 */
+            max-width: calc(75vh * (4/3));
             aspect-ratio: 4 / 3;
             border-radius: 16px; 
             overflow: hidden; 
@@ -32,7 +31,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
 
-        /* object-fit: fill을 사용하여 좌표 계산을 100% 일치시킴 */
         video, canvas { 
             position: absolute; 
             top: 0; 
@@ -40,18 +38,17 @@
             width: 100%; 
             height: 100%; 
             object-fit: fill; 
-            transform: scaleX(-1); /* 거울 모드 */
+            transform: scaleX(-1);
         }
 
         #zoomed-canvas { 
             display: none; 
             z-index: 10; 
-            object-fit: contain; /* 정사각형 이미지가 깨지지 않고 가운데 꽉 차게 */
-            transform: scaleX(1); /* 캔버스 자체는 반전 해제 (JS에서 그림) */
+            object-fit: contain;
+            transform: scaleX(1);
             background-color: #1a1a1a;
         }
 
-        /* 타겟 박스 (항상 완벽한 정사각형 유지) */
         #target-box { 
             position: absolute; 
             border: 6px dashed #ff4757; 
@@ -59,7 +56,7 @@
             pointer-events: none; 
             z-index: 5; 
             display: none; 
-            box-sizing: border-box; /* 테두리 두께가 크기에 영향 안주게 */
+            box-sizing: border-box;
         }
 
         .overlay-ui { 
@@ -122,7 +119,7 @@
 </head>
 <body>
 
-    <h2>🎯 빨간 네모 맞추기 게임</h2>
+    <h2>>🟥 RED BOX GAME 🟥</h2>
     <div id="container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
@@ -131,7 +128,6 @@
     </div>
 
     <div class="controls">
-        <!-- 시작할 때만 보이는 영역 -->
         <div id="start-controls" class="start-controls">
             <div class="size-selector">
                 <span>사이즈:</span>
@@ -142,7 +138,6 @@
             <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
         </div>
         
-        <!-- 찰칵 후에만 보이는 영역 -->
         <button id="reset-btn" class="game-btn" onclick="resetGame()">다시 하기</button>
     </div>
 
@@ -155,7 +150,7 @@
         const countdownEl = document.getElementById('countdown');
         const container = document.getElementById('container');
 
-        let currentSizePercent = 30; // 기본 크기 (화면 너비의 30%)
+        let currentSizePercent = 30;
         let gameRunning = false;
 
         async function initCamera() {
@@ -164,7 +159,6 @@
                     video: { aspectRatio: 4/3, width: { ideal: 1280 }, height: { ideal: 960 } } 
                 });
                 videoElement.srcObject = stream;
-                // 비디오 정보가 로드되면 미리보기 박스 표시
                 videoElement.onloadedmetadata = () => { showCenterPreview(); };
             } catch (e) { 
                 alert("카메라 권한이 필요합니다."); 
