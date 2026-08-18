@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>빨간 네모 맞추기 게임</title>
+    <title>🟥 RED BOX GAME 🟥</title>
     <style>
         body { 
             margin: 0; 
@@ -40,7 +40,6 @@
             object-fit: fill; 
         }
 
-        /* 전면 카메라인 경우에만 좌우 반전 적용 */
         video.user-facing, canvas.user-facing { 
             transform: scaleX(-1); 
         }
@@ -121,9 +120,8 @@
 </head>
 <body>
 
-    <h2>🎯 빨간 네모 맞추기 게임</h2>
+    <h2>🟥 RED BOX GAME 🟥</h2>
     <div id="container">
-        <!-- 기본값은 후면 카메라(user-facing 클래스 없음) -->
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
         <div id="target-box"></div>
@@ -161,13 +159,11 @@
 
         let currentSizePercent = 30;
         let gameRunning = false;
-        let currentFacingMode = 'environment'; // 기본 후면
+        let currentFacingMode = 'environment';
 
-        // 카메라 초기화 (전/후면 선택 반영)
         async function initCamera(facingMode) {
             currentFacingMode = facingMode;
             
-            // 전면 카메라일 때만 거울 모드 클래스 추가
             if (facingMode === 'user') {
                 videoElement.classList.add('user-facing');
                 zoomedCanvas.classList.add('user-facing');
@@ -177,7 +173,6 @@
             }
 
             try {
-                // 이미 실행 중인 스트림이 있다면 끄기
                 if (videoElement.srcObject) {
                     videoElement.srcObject.getTracks().forEach(track => track.stop());
                 }
@@ -193,7 +188,6 @@
                 videoElement.srcObject = stream;
                 videoElement.onloadedmetadata = () => { showCenterPreview(); };
             } catch (e) {
-                // 기기 환경에 따라 exact 옵션이 지원되지 않을 경우 완화된 옵션으로 재시도
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { facingMode: facingMode } 
@@ -276,7 +270,6 @@
             const nativeCropH = boxSize * scaleY;
             
             let nativeX;
-            // 전면 카메라인 경우에만 X좌표 반전 계산
             if (currentFacingMode === 'user') {
                 nativeX = nativeW - (visualX * scaleX) - nativeCropW;
             } else {
@@ -288,7 +281,6 @@
             zoomedCanvas.height = nativeCropH;
             const ctx = zoomedCanvas.getContext('2d');
 
-            // 전면 카메라일 때만 캔버스도 좌우 반전 보정
             if (currentFacingMode === 'user') {
                 ctx.translate(zoomedCanvas.width, 0);
                 ctx.scale(-1, 1);
@@ -314,7 +306,6 @@
             showCenterPreview();
         }
 
-        // 페이지 로드시 기본 후면 카메라로 실행
         initCamera('environment');
     </script>
 </body>
