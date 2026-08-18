@@ -97,8 +97,10 @@
             width: 100%; 
             height: 100%; 
             object-fit: fill; 
-            transform: scaleX(-1);
         }
+
+        #webcam.mirrored { transform: scaleX(-1); }
+        #webcam.normal { transform: scaleX(1); }
 
         #zoomed-canvas { 
             display: none; 
@@ -208,11 +210,10 @@
             <p style="text-align: center; margin-top: 25px;">
                 <span class="highlight">📸 찰칵하는 순간!<br>빨간 네모 안에 있는 사람은 성공! 🎉</span>
             </p>
-            <button class="modal-btn" onclick="closeTutorial()">좋아요 😍</button>
+            <button class="modal-btn" onclick="closeTutorial()">좋아요!</button>
         </div>
     </div>
 
-    <!-- 메인 게임 영역 -->
     <div id="container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
@@ -225,10 +226,10 @@
             <select id="camera-select" onchange="changeCamera()"></select>
 
             <div class="option-row">
-                <span>네모 사이즈:</span>
-                <label><input type="radio" name="size" value="180" onchange="changeSize(180)"> 작게</label>
-                <label><input type="radio" name="size" value="250" checked onchange="changeSize(250)"> 보통</label>
-                <label><input type="radio" name="size" value="320" onchange="changeSize(320)"> 크게</label>
+                <span>네모 크기:</span>
+                <label><input type="radio" name="size-type" value="small" onchange="changeSizeMode('small')"> 작게</label>
+                <label><input type="radio" name="size-type" value="normal" checked onchange="changeSizeMode('normal')"> 보통</label>
+                <label><input type="radio" name="size-type" value="large" onchange="changeSizeMode('large')"> 크게</label>
             </div>
             <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
         </div>
@@ -246,9 +247,10 @@
         const tutorialModal = document.getElementById('tutorial-modal');
         const cameraSelect = document.getElementById('camera-select');
 
-        let currentSize = 250;
+        let sizeMode = 'normal'; 
         let gameRunning = false;
         let currentStream = null;
+        let isFrontCamera = true; 
 
         function closeTutorial() {
             tutorialModal.style.display = 'none';
@@ -297,6 +299,20 @@
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 currentStream = stream;
                 videoElement.srcObject = stream;
+
+                const selectedOptionText = cameraSelect.options[cameraSelect.selectedIndex]?.text.toLowerCase() || '';
+                if (selectedOptionText.includes('back') || selectedOptionText.includes('rear') || selectedOptionText.includes('후면') || selectedOptionText.includes('environment')) {
+                    isFrontCamera = false;
+                } else {
+                    isFrontCamera = true;
+                }
+
+                if (isFrontCamera) {
+                    videoElement.className = 'mirrored';
+                } else {
+                    videoElement.className = 'normal';
+                }
+
                 videoElement.onloadedmetadata = () => { 
                     updateContainerSize(); 
                 };
@@ -335,9 +351,20 @@
             showCenterPreview(); 
         }
 
+        function getCurrentTargetSize() {
+            const rect = container.getBoundingClientRect();
+            const minDim = Math.min(rect.width, rect.height);
+            
+            if (sizeMode === 'small') return Math.floor(minDim * 0.3); 
+            if (sizeMode === 'large') return Math.floor(minDim * 0.6); 
+            return Math.floor(minDim * 0.45); 
+        }
+
         function showCenterPreview() {
             if (gameRunning) return;
             const rect = container.getBoundingClientRect();
+            const currentSize = getCurrentTargetSize();
+
             targetBox.style.width = currentSize + 'px';
             targetBox.style.height = currentSize + 'px';
             targetBox.style.left = `${(rect.width - currentSize) / 2}px`;
@@ -345,8 +372,8 @@
             targetBox.style.display = 'block';
         }
 
-        function changeSize(size) {
-            currentSize = parseInt(size);
+        function changeSizeMode(mode) {
+            sizeMode = mode;
             showCenterPreview();
         }
 
@@ -357,6 +384,7 @@
             const rect = container.getBoundingClientRect();
             const containerW = rect.width;
             const containerH = rect.height;
+            const currentSize = getCurrentTargetSize();
 
             const maxX = Math.max(0, containerW - currentSize);
             const maxY = Math.max(0, containerH - currentSize);
@@ -388,6 +416,7 @@
             const rect = container.getBoundingClientRect();
             const containerW = rect.width;
             const containerH = rect.height;
+            const currentSize = getCurrentTargetSize();
 
             const nativeW = videoElement.videoWidth || 1280;
             const nativeH = videoElement.videoHeight || 960;
@@ -398,15 +427,23 @@
             const nativeCropW = currentSize * scaleX;
             const nativeCropH = currentSize * scaleY;
             
-            let nativeX = nativeW - (x * scaleX) - nativeCropW; 
-            const nativeY = y * scaleY;
+            let nativeX;
+            const ctx = zoomedCanvas.getContext('2d');
 
             zoomedCanvas.width = nativeCropW;
             zoomedCanvas.height = nativeCropH;
-            const ctx = zoomedCanvas.getContext('2d');
 
-            ctx.translate(zoomedCanvas.width, 0);
-            ctx.scale(-1, 1);
+            // 전면 카메라인 경우 좌우 반전 복원 보정, 후면 카메라는 일반 좌표 처리
+            if (isFrontCamera) {
+                nativeX = nativeW - (x * scaleX) - nativeCropW;
+                ctx.translate(zoomedCanvas.width, 0);
+                ctx.scale(-1, 1);
+            } else {
+                nativeX = x * scaleX;
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
+
+            const nativeY = y * scaleY;
 
             ctx.drawImage(
                 videoElement, 
