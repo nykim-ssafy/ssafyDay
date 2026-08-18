@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🟥 RED BOX GAME 🟥</title>
     <style>
         body { 
@@ -18,12 +18,12 @@
             overflow: hidden; 
         }
 
-        h2 { margin: 5px 0 15px 0; font-size: 1.8rem; }
+        h2 { margin: 5px 0 10px 0; font-size: 1.5rem; }
 
         #container { 
             position: relative; 
-            width: 90vw; 
-            max-width: calc(75vh * (4/3)); 
+            width: 85vw; 
+            max-width: 600px; 
             aspect-ratio: 4 / 3;
             border-radius: 16px; 
             overflow: hidden; 
@@ -37,9 +37,10 @@
             left: 0; 
             width: 100%; 
             height: 100%; 
-            object-fit: fill; 
+            object-fit: cover; /* 퍼짐 방지 및 화면 채우기 */
         }
 
+        /* 전면 카메라인 경우에만 좌우 반전 */
         video.user-facing, canvas.user-facing { 
             transform: scaleX(-1); 
         }
@@ -49,6 +50,7 @@
             z-index: 10; 
             object-fit: contain; 
             background-color: #1a1a1a;
+            transform: scaleX(1) !important; /* 캡처본은 JS에서 반전 처리하므로 강제 초기화 */
         }
 
         #target-box { 
@@ -75,35 +77,39 @@
         }
 
         #countdown { 
-            font-size: 10vw; 
+            font-size: 15vw; 
             font-weight: bold; 
             color: #ff4757; 
             text-shadow: 0 5px 15px rgba(0,0,0,0.9);
         }
 
-        .controls { margin-top: 25px; height: 100px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .controls { margin-top: 15px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         
         .start-controls { 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            gap: 10px; 
+            gap: 8px; 
         }
         
         .start-controls.hidden { display: none; }
 
         .option-row {
             display: flex;
-            gap: 10px;
-            font-size: 1rem;
+            gap: 12px;
+            font-size: 0.95rem;
             background: #1e1e1e;
-            padding: 8px 15px;
+            padding: 6px 15px;
             border-radius: 20px;
             align-items: center;
         }
 
+        /* 모바일 옵션 영역 (기본 숨김) */
+        #mobile-options { display: none; }
+        #mobile-options.show { display: flex; }
+
         .game-btn { 
-            padding: 12px 35px; 
+            padding: 10px 30px; 
             font-size: 1.1rem; 
             font-weight: bold; 
             color: white; 
@@ -130,18 +136,28 @@
 
     <div class="controls">
         <div id="start-controls" class="start-controls">
-            <!-- 카메라 전/후면 선택 옵션 -->
+            <!-- 1. 기기 환경 선택 (PC / 모바일) -->
             <div class="option-row">
+                <span>기기:</span>
+                <label><input type="radio" name="device" value="pc" checked onchange="switchDevice()"> PC</label>
+                <label><input type="radio" name="device" value="mobile" onchange="switchDevice()"> 모바일</label>
+            </div>
+
+            <!-- 2. 모바일 선택 시에만 나타나는 전/후면 옵션 -->
+            <div id="mobile-options" class="option-row">
                 <span>카메라:</span>
                 <label><input type="radio" name="camera" value="environment" checked onchange="switchCamera()"> 후면</label>
                 <label><input type="radio" name="camera" value="user" onchange="switchCamera()"> 전면</label>
             </div>
+
+            <!-- 3. 네모 사이즈 선택 -->
             <div class="option-row">
                 <span>사이즈:</span>
                 <label><input type="radio" name="size" value="20" onchange="changeSize(20)"> 작게</label>
                 <label><input type="radio" name="size" value="30" checked onchange="changeSize(30)"> 보통</label>
                 <label><input type="radio" name="size" value="40" onchange="changeSize(40)"> 크게</label>
             </div>
+
             <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
         </div>
         
@@ -156,15 +172,52 @@
         const resetBtn = document.getElementById('reset-btn');
         const countdownEl = document.getElementById('countdown');
         const container = document.getElementById('container');
+        const mobileOptions = document.getElementById('mobile-options');
 
         let currentSizePercent = 30;
         let gameRunning = false;
-        let currentFacingMode = 'environment';
+        let currentFacingMode = null; // PC는 null, 모바일은 'user' 또는 'environment'
 
-        async function initCamera(facingMode) {
-            currentFacingMode = facingMode;
+        // 카메라 초기화 함수
+        async function initCamera(constraintObj) {
+            try {
+                if (videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraintObj);
+                videoElement.srcObject = stream;
+                
+                videoElement.onloadedmetadata = () => { 
+                    showCenterPreview(); 
+                };
+            } catch (e) {
+                alert("카메라를 실행할 수 없습니다. 권한을 확인해주세요.");
+            }
+        }
+
+        // 기기 타입 변경 (PC / 모바일)
+        function switchDevice() {
+            const deviceType = document.querySelector('input[name="device"]:checked').value;
             
-            if (facingMode === 'user') {
+            if (deviceType === 'pc') {
+                mobileOptions.classList.remove('show');
+                videoElement.classList.remove('user-facing');
+                zoomedCanvas.classList.remove('user-facing');
+                currentFacingMode = null;
+                initCamera({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } });
+            } else {
+                mobileOptions.classList.add('show');
+                switchCamera(); // 모바일 기본값(후면)으로 실행
+            }
+        }
+
+        // 모바일 내에서 전면/후면 변경
+        function switchCamera() {
+            const selectedCamera = document.querySelector('input[name="camera"]:checked').value;
+            currentFacingMode = selectedCamera;
+
+            if (selectedCamera === 'user') {
                 videoElement.classList.add('user-facing');
                 zoomedCanvas.classList.add('user-facing');
             } else {
@@ -172,43 +225,23 @@
                 zoomedCanvas.classList.remove('user-facing');
             }
 
-            try {
-                if (videoElement.srcObject) {
-                    videoElement.srcObject.getTracks().forEach(track => track.stop());
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: { exact: facingMode },
-                        aspectRatio: 4/3, 
-                        width: { ideal: 1280 }, 
-                        height: { ideal: 960 } 
-                    } 
-                });
-                videoElement.srcObject = stream;
-                videoElement.onloadedmetadata = () => { showCenterPreview(); };
-            } catch (e) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: facingMode } 
-                    });
-                    videoElement.srcObject = stream;
-                    videoElement.onloadedmetadata = () => { showCenterPreview(); };
-                } catch (err) {
-                    alert("해당 카메라를 실행할 수 없습니다. 권한을 확인해주세요.");
-                }
-            }
-        }
-
-        function switchCamera() {
-            const selectedMode = document.querySelector('input[name="camera"]:checked').value;
-            initCamera(selectedMode);
+            initCamera({ 
+                video: { 
+                    facingMode: { exact: selectedCamera },
+                    width: { ideal: 1280 }, 
+                    height: { ideal: 720 } 
+                } 
+            }).catch(() => {
+                // exact 지원 안 하는 기기 대응
+                initCamera({ video: { facingMode: selectedCamera } });
+            });
         }
 
         function getBoxSizePx() {
             return container.clientWidth * (currentSizePercent / 100);
         }
 
+        // 중앙 미리보기 (완벽한 정사각형 보장)
         function showCenterPreview() {
             if (gameRunning) return;
             const boxSize = getBoxSizePx();
@@ -240,6 +273,7 @@
             const randomX = Math.floor(Math.random() * maxX);
             const randomY = Math.floor(Math.random() * maxY);
 
+            // 시작할 때도 완벽한 정사각형 유지
             targetBox.style.width = boxSize + 'px';
             targetBox.style.height = boxSize + 'px';
             targetBox.style.left = randomX + 'px';
@@ -257,28 +291,48 @@
             performZoom(randomX, randomY, boxSize);
         }
 
+        // 찰칵 후 1:1 정사각형 크롭 및 왜곡 방지 렌더링
         function performZoom(visualX, visualY, boxSize) {
             videoElement.style.display = 'none';
             targetBox.style.display = 'none';
 
+            // 실제 비디오 해상도와 화면에 표시된 컨테이너 크기 비율 계산
             const nativeW = videoElement.videoWidth;
             const nativeH = videoElement.videoHeight;
-            const scaleX = nativeW / container.clientWidth;
-            const scaleY = nativeH / container.clientHeight;
-
-            const nativeCropW = boxSize * scaleX;
-            const nativeCropH = boxSize * scaleY;
             
-            let nativeX;
-            if (currentFacingMode === 'user') {
-                nativeX = nativeW - (visualX * scaleX) - nativeCropW;
-            } else {
-                nativeX = visualX * scaleX;
-            }
-            const nativeY = visualY * scaleY;
+            // object-fit: cover로 인해 잘려나간 영역까지 고려한 정확한 스케일 매핑
+            const elementW = container.clientWidth;
+            const elementH = container.clientHeight;
+            
+            const videoRatio = nativeW / nativeH;
+            const elementRatio = elementW / elementH;
 
-            zoomedCanvas.width = nativeCropW;
-            zoomedCanvas.height = nativeCropH;
+            let renderW, renderH, offsetX = 0, offsetY = 0;
+            if (videoRatio > elementRatio) {
+                renderH = elementH;
+                renderW = elementH * videoRatio;
+                offsetX = (renderW - elementW) / 2;
+            } else {
+                renderW = elementW;
+                renderH = elementW / videoRatio;
+                offsetY = (renderH - elementH) / 2;
+            }
+
+            const scale = nativeW / renderW;
+            
+            // 네모 박스의 화면 좌표를 원본 영상 좌표계로 변환 (완벽한 정사각형 유지)
+            const nativeCropSize = boxSize * scale;
+            let nativeX = (visualX + offsetX) * scale;
+            const nativeY = (visualY + offsetY) * scale;
+
+            // 전면 카메라일 때만 X축 반전 보정
+            if (currentFacingMode === 'user') {
+                nativeX = nativeW - nativeX - nativeCropSize;
+            }
+
+            // 캔버스 크기를 1:1 정사각형으로 똑같이 설정하여 왜곡 원천 차단
+            zoomedCanvas.width = nativeCropSize;
+            zoomedCanvas.height = nativeCropSize;
             const ctx = zoomedCanvas.getContext('2d');
 
             if (currentFacingMode === 'user') {
@@ -288,7 +342,7 @@
 
             ctx.drawImage(
                 videoElement, 
-                nativeX, nativeY, nativeCropW, nativeCropH, 
+                nativeX, nativeY, nativeCropSize, nativeCropSize, 
                 0, 0, zoomedCanvas.width, zoomedCanvas.height 
             );
 
@@ -306,7 +360,8 @@
             showCenterPreview();
         }
 
-        initCamera('environment');
+        // 초기 실행: 기본 PC 환경으로 로드
+        initCamera({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } });
     </script>
 </body>
 </html>
