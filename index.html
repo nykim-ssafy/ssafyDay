@@ -20,9 +20,6 @@
 
         #container { 
             position: relative; 
-            width: 90vw; 
-            max-width: 1200px; 
-            height: 75vh; 
             border-radius: 16px; 
             overflow: hidden; 
             background-color: #000; 
@@ -35,7 +32,7 @@
             left: 0; 
             width: 100%; 
             height: 100%; 
-            object-fit: cover; 
+            object-fit: fill; 
             transform: scaleX(-1);
         }
 
@@ -141,10 +138,8 @@
                 <label><input type="radio" name="size" value="250" checked onchange="changeSize(250)"> 보통</label>
                 <label><input type="radio" name="size" value="320" onchange="changeSize(320)"> 크게</label>
             </div>
-
             <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
         </div>
-        
         <button id="reset-btn" class="game-btn" onclick="resetGame()">다시 하기</button>
     </div>
 
@@ -167,22 +162,45 @@
                 });
                 videoElement.srcObject = stream;
                 videoElement.onloadedmetadata = () => { 
-                    showCenterPreview(); 
+                    updateContainerSize();
                 };
             } catch (e) {
                 alert("웹캠 권한이 필요합니다.");
             }
         }
 
+        function updateContainerSize() {
+            const vw = videoElement.videoWidth || 1280;
+            const vh = videoElement.videoHeight || 960;
+
+            const maxW = Math.min(window.innerWidth * 0.9, 1200);
+            const maxH = window.innerHeight * 0.75;
+
+            const videoRatio = vw / vh;
+            const boxRatio = maxW / maxH;
+
+            let finalW, finalH;
+            if (boxRatio > videoRatio) {
+                finalH = maxH;
+                finalW = maxH * videoRatio;
+            } else {
+                finalW = maxW;
+                finalH = maxW / videoRatio;
+            }
+
+            container.style.width = finalW + 'px';
+            container.style.height = finalH + 'px';
+
+            showCenterPreview(); 
+        }
+
         function showCenterPreview() {
             if (gameRunning) return;
-            const containerW = container.clientWidth;
-            const containerH = container.clientHeight;
-
+            const rect = container.getBoundingClientRect();
             targetBox.style.width = currentSize + 'px';
             targetBox.style.height = currentSize + 'px';
-            targetBox.style.left = `${(containerW - currentSize) / 2}px`;
-            targetBox.style.top = `${(containerH - currentSize) / 2}px`;
+            targetBox.style.left = `${(rect.width - currentSize) / 2}px`;
+            targetBox.style.top = `${(rect.height - currentSize) / 2}px`;
             targetBox.style.display = 'block';
         }
 
@@ -195,8 +213,9 @@
             gameRunning = true;
             startControls.classList.add('hidden');
 
-            const containerW = container.clientWidth;
-            const containerH = container.clientHeight;
+            const rect = container.getBoundingClientRect();
+            const containerW = rect.width;
+            const containerH = rect.height;
 
             const maxX = Math.max(0, containerW - currentSize);
             const maxY = Math.max(0, containerH - currentSize);
@@ -225,31 +244,24 @@
             videoElement.style.display = 'none';
             targetBox.style.display = 'none';
 
-            const containerW = container.clientWidth;
-            const containerH = container.clientHeight;
+            const rect = container.getBoundingClientRect();
+            const containerW = rect.width;
+            const containerH = rect.height;
 
             const nativeW = videoElement.videoWidth || 1280;
             const nativeH = videoElement.videoHeight || 960;
             
-            const scale = Math.max(containerW / nativeW, containerH / nativeH);
+            const scaleX = nativeW / containerW;
+            const scaleY = nativeH / containerH;
 
-            const renderedW = nativeW * scale;
-            const renderedH = nativeH * scale;
+            const nativeCropW = currentSize * scaleX;
+            const nativeCropH = currentSize * scaleY;
+            
+            let nativeX = nativeW - (x * scaleX) - nativeCropW; 
+            const nativeY = y * scaleY;
 
-            const offsetX = (renderedW - containerW) / 2;
-            const offsetY = (renderedH - containerH) / 2;
-
-            const renderX = x + offsetX;
-            const renderY = y + offsetY;
-
-            const sourceLeftRendered = renderedW - renderX - currentSize;
-
-            const nativeX = sourceLeftRendered / scale;
-            const nativeY = renderY / scale;
-            const nativeCropSize = currentSize / scale;
-
-            zoomedCanvas.width = nativeCropSize;
-            zoomedCanvas.height = nativeCropSize;
+            zoomedCanvas.width = nativeCropW;
+            zoomedCanvas.height = nativeCropH;
             const ctx = zoomedCanvas.getContext('2d');
 
             ctx.translate(zoomedCanvas.width, 0);
@@ -257,7 +269,7 @@
 
             ctx.drawImage(
                 videoElement, 
-                nativeX, nativeY, nativeCropSize, nativeCropSize, 
+                nativeX, nativeY, nativeCropW, nativeCropH, 
                 0, 0, zoomedCanvas.width, zoomedCanvas.height 
             );
 
@@ -275,7 +287,9 @@
             showCenterPreview();
         }
 
-        window.addEventListener('resize', showCenterPreview);
+        window.addEventListener('resize', () => {
+            if (!gameRunning) updateContainerSize();
+        });
 
         initCamera();
     </script>
