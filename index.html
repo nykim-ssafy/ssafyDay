@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>빨간 네모 맞추기 게임</title>
+
+    <style>
+        body {
+            margin: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h2 { margin-bottom: 10px; }
+
+        #container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            background-color: #000;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* 거울 모드 */
+        }
+
+        /* 줌인된 이미지를 보여줄 캔버스 (기본 숨김) */
+        #zoomed-canvas {
+            display: none;
+            z-index: 10;
+        }
+
+        #target-box {
+            position: absolute;
+            border: 4px dashed #ff4757;
+            background-color: rgba(255, 71, 87, 0.1);
+            display: none;
+            box-sizing: border-box;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 5;
+        }
+
+        .overlay-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        #countdown {
+            font-size: 80px;
+            font-weight: bold;
+            color: #ff4757;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        }
+
+        .btn-group {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .game-btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #start-btn { background-color: #ff4757; }
+        #start-btn:hover { background-color: #ff6b81; }
+        
+        #reset-btn { background-color: #57606f; display: none; }
+        #reset-btn:hover { background-color: #747d8c; }
+
+        .game-btn:active { transform: scale(0.95); }
+        .game-btn:disabled { background-color: #57606f; cursor: not-allowed; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+    <h2>🎯 빨간 네모 맞추기 게임</h2>
+    
+    <div id="container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <!-- 확대된 캡처 화면을 보여줄 캔버스 -->
+        <canvas id="zoomed-canvas"></canvas>
+        <!-- 미션 빨간 네모 박스 -->
+        <div id="target-box"></div>
+        <!-- UI 오버레이 -->
+        <div class="overlay-ui">
+            <div id="countdown"></div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
+        <button id="reset-btn" class="game-btn" onclick="resetGame()">다시 하기</button>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const zoomedCanvas = document.getElementById('zoomed-canvas');
+        const zoomedCtx = zoomedCanvas.getContext('2d');
+        const targetBox = document.getElementById('target-box');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const countdownEl = document.getElementById('countdown');
+
+        // 네모 박스 크기 고정
+        const BOX_WIDTH = 220;
+        const BOX_HEIGHT = 260;
+        
+        let isRunning = false;
+
+        // 웹캠 초기화
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                videoElement.srcObject = stream;
+            } catch (err) {
+                alert("웹캠을 실행할 수 없습니다. 권한을 확인해주세요.");
+                console.error(err);
+            }
+        }
+
+        // 게임 시작
+        async function startGame() {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.disabled = true;
+            resetBtn.style.display = 'none';
+            zoomedCanvas.style.display = 'none';
+            videoElement.style.display = 'block';
+
+            // 랜덤 위치 계산 (화면 경계 안쪽)
+            const containerW = 640;
+            const containerH = 480;
+            const maxX = containerW - BOX_WIDTH - 40;
+            const maxY = containerH - BOX_HEIGHT - 40;
+            const randomX = Math.floor(Math.random() * maxX) + 20;
+            const randomY = Math.floor(Math.random() * maxY) + 20;
+
+            // 박스 위치 적용
+            targetBox.style.width = `${BOX_WIDTH}px`;
+            targetBox.style.height = `${BOX_HEIGHT}px`;
+            targetBox.style.left = `${randomX}px`;
+            targetBox.style.top = `${randomY}px`;
+            targetBox.style.display = 'block';
+
+            // 3, 2, 1 카운트다운
+            for (let i = 3; i > 0; i--) {
+                countdownEl.textContent = i;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            countdownEl.textContent = "찰칵! 📸";
+            await new Promise(r => setTimeout(r, 500));
+            countdownEl.textContent = "";
+
+            // 스냅샷 및 줌인 실행
+            performZoom(randomX, randomY);
+
+            isRunning = false;
+            resetBtn.style.display = 'inline-block';
+        }
+
+        // 네모 박스 영역만 잘라서 확대하기
+        function performZoom(boxX, boxY) {
+            videoElement.style.display = 'none';
+            targetBox.style.display = 'none';
+
+            zoomedCanvas.width = BOX_WIDTH;
+            zoomedCanvas.height = BOX_HEIGHT;
+
+            // 거울 모드(scaleX(-1)) 감안한 원본 비디오 좌표 계산
+            const sX = 640 - (boxX + BOX_WIDTH);
+            const sY = boxY;
+
+            zoomedCtx.save();
+            zoomedCtx.scale(-1, 1);
+            zoomedCtx.drawImage(videoElement, sX, sY, BOX_WIDTH, BOX_HEIGHT, -BOX_WIDTH, 0, BOX_WIDTH, BOX_HEIGHT);
+            zoomedCtx.restore();
+
+            zoomedCanvas.style.display = 'block';
+        }
+
+        // 초기화 후 다시 시작
+        function resetGame() {
+            zoomedCanvas.style.display = 'none';
+            videoElement.style.display = 'block';
+            resetBtn.style.display = 'none';
+            startBtn.disabled = false;
+        }
+
+        initCamera();
+    </script>
+</body>
+</html>
