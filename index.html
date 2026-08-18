@@ -4,38 +4,131 @@
     <meta charset="UTF-8">
     <title>빨간 네모 맞추기 게임</title>
     <style>
-        body { margin: 0; background-color: #121212; color: #ffffff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        #container { position: relative; width: 640px; height: 480px; border-radius: 12px; overflow: hidden; background-color: #000; cursor: crosshair; }
-        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        #zoomed-canvas { display: none; z-index: 10; transform: scaleX(1); }
-        /* 미리보기 및 미션 박스 */
-        #preview-box, #target-box { position: absolute; border: 4px dashed #ff4757; background-color: rgba(255, 71, 87, 0.1); pointer-events: none; z-index: 5; display: none; }
-        #preview-box { border-color: rgba(255, 71, 87, 0.5); border-style: solid; }
-        .overlay-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 15; }
-        #countdown { font-size: 80px; font-weight: bold; color: #ff4757; }
-        .controls { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .game-btn { padding: 12px 30px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 30px; cursor: pointer; }
+        body { 
+            margin: 0; 
+            background-color: #121212; 
+            color: #ffffff; 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            overflow: hidden;
+        }
+
+        h2 { margin: 5px 0 15px 0; font-size: 1.5rem; }
+
+        /* 화면의 약 90%를 채우는 컨테이너 (비율 4:3 유지) */
+        #container { 
+            position: relative; 
+            width: 85vw; 
+            max-width: 1000px; 
+            aspect-ratio: 4 / 3;
+            border-radius: 16px; 
+            overflow: hidden; 
+            background-color: #000; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        video, canvas { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            transform: scaleX(-1); 
+        }
+
+        #zoomed-canvas { 
+            display: none; 
+            z-index: 10; 
+            transform: scaleX(1); 
+        }
+
+        /* 중앙 미리보기 및 랜덤 미션 박스 */
+        #target-box { 
+            position: absolute; 
+            border: 6px dashed #ff4757; 
+            background-color: rgba(255, 71, 87, 0.15); 
+            pointer-events: none; 
+            z-index: 5; 
+            display: none; 
+            box-sizing: border-box;
+        }
+
+        .overlay-ui { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            pointer-events: none; 
+            z-index: 15; 
+        }
+
+        #countdown { 
+            font-size: 10vw; 
+            font-weight: bold; 
+            color: #ff4757; 
+            text-shadow: 0 5px 15px rgba(0,0,0,0.9);
+        }
+
+        .controls { 
+            margin-top: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 12px; 
+        }
+
+        .size-selector { 
+            font-size: 1.1rem; 
+            display: flex; 
+            gap: 15px; 
+            background: #1e1e1e; 
+            padding: 10px 20px; 
+            border-radius: 20px; 
+        }
+
+        .game-btn { 
+            padding: 14px 35px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            color: white; 
+            border: none; 
+            border-radius: 30px; 
+            cursor: pointer; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+        .game-btn:active { transform: scale(0.95); }
+        
         #start-btn { background-color: #ff4757; }
-        #reset-btn { background-color: #57606f; display: none; }
+        #start-btn:disabled { background-color: #57606f; cursor: not-allowed; }
+        #reset-btn { background-color: #2ed573; display: none; }
     </style>
 </head>
 <body>
 
-    <h2>🎯 빨간 네모 맞추기</h2>
-    <div id="container" onmousemove="updatePreview(event)">
+    <h2>🎯 빨간 네모 맞추기 게임</h2>
+    <div id="container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="zoomed-canvas"></canvas>
-        <div id="preview-box"></div>
         <div id="target-box"></div>
         <div class="overlay-ui"><div id="countdown"></div></div>
     </div>
 
     <div class="controls">
         <div class="size-selector">
-            사이즈 선택: 
-            <input type="radio" name="size" value="150" onchange="changeSize(150)"> 작게 
-            <input type="radio" name="size" value="220" checked onchange="changeSize(220)"> 보통 
-            <input type="radio" name="size" value="300" onchange="changeSize(300)"> 크게 
+            <span>네모 사이즈:</span>
+            <label><input type="radio" name="size" value="200" onchange="changeSize(200)"> 작게</label>
+            <label><input type="radio" name="size" value="300" checked onchange="changeSize(300)"> 보통</label>
+            <label><input type="radio" name="size" value="400" onchange="changeSize(400)"> 크게</label>
         </div>
         <button id="start-btn" class="game-btn" onclick="startGame()">게임 시작</button>
         <button id="reset-btn" class="game-btn" onclick="resetGame()">다시 하기</button>
@@ -43,69 +136,103 @@
 
     <script>
         const videoElement = document.getElementById('webcam');
-        const previewBox = document.getElementById('preview-box');
         const targetBox = document.getElementById('target-box');
-        let currentSize = 220;
+        const zoomedCanvas = document.getElementById('zoomed-canvas');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const countdownEl = document.getElementById('countdown');
 
+        let currentSize = 300; // 기본 '보통' 사이즈
+
+        // 초기 카메라 연결
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
                 videoElement.srcObject = stream;
-            } catch (e) { alert("카메라 권한이 필요합니다."); }
+                showCenterPreview(); // 시작 전 중앙 미리보기 표시
+            } catch (e) { 
+                alert("카메라 권한이 필요합니다. HTTPS 환경 또는 권한 설정을 확인해주세요."); 
+            }
         }
 
-        // 마우스 따라다니는 미리보기
-        function updatePreview(e) {
-            const rect = document.getElementById('container').getBoundingClientRect();
-            const x = e.clientX - rect.left - currentSize/2;
-            const y = e.clientY - rect.top - currentSize/2;
-            previewBox.style.width = currentSize + 'px';
-            previewBox.style.height = currentSize + 'px';
-            previewBox.style.left = Math.max(0, Math.min(x, 640 - currentSize)) + 'px';
-            previewBox.style.top = Math.max(0, Math.min(y, 480 - currentSize)) + 'px';
-            if(document.getElementById('start-btn').disabled === false) previewBox.style.display = 'block';
-        }
-
-        function changeSize(size) { currentSize = size; }
-
-        async function startGame() {
-            previewBox.style.display = 'none';
-            document.getElementById('start-btn').disabled = true;
+        // 1. 시작 전 화면 중앙에 네모 박스를 띄워 사이즈 확인용으로 제공
+        function showCenterPreview() {
+            const containerW = videoElement.videoWidth || 640;
+            const containerH = videoElement.videoHeight || 480;
             
-            const x = Math.floor(Math.random() * (640 - currentSize));
-            const y = Math.floor(Math.random() * (480 - currentSize));
-
             targetBox.style.width = currentSize + 'px';
             targetBox.style.height = currentSize + 'px';
-            targetBox.style.left = x + 'px';
-            targetBox.style.top = y + 'px';
+            targetBox.style.left = `calc(50% - ${currentSize / 2}px)`;
+            targetBox.style.top = `calc(50% - ${currentSize / 2}px)`;
             targetBox.style.display = 'block';
-
-            for (let i = 3; i > 0; i--) {
-                document.getElementById('countdown').textContent = i;
-                await new Promise(r => setTimeout(r, 1000));
-            }
-            document.getElementById('countdown').textContent = "찰칵!";
-            await new Promise(r => setTimeout(r, 500));
-            document.getElementById('countdown').textContent = "";
-
-            const canvas = document.getElementById('zoomed-canvas');
-            canvas.width = currentSize; canvas.height = currentSize;
-            const ctx = canvas.getContext('2d');
-            videoElement.style.display = 'none';
-            targetBox.style.display = 'none';
-            
-            ctx.scale(-1, 1);
-            ctx.drawImage(videoElement, -(x + currentSize), y, currentSize, currentSize, 0, 0, currentSize, currentSize);
-            canvas.style.display = 'block';
-            document.getElementById('reset-btn').style.display = 'inline-block';
         }
 
+        function changeSize(size) {
+            currentSize = size;
+            if (startBtn.disabled === false) {
+                showCenterPreview(); // 게임 중이 아닐 때만 사이즈 변경 시 중앙 미리보기 갱신
+            }
+        }
+
+        // 게임 시작 버튼 클릭
+        async function startGame() {
+            startBtn.disabled = true;
+            targetBox.style.display = 'none'; // 미리보기 박스 숨김
+
+            const videoW = videoElement.videoWidth || 640;
+            const videoH = videoElement.videoHeight || 480;
+            
+            const randomX = Math.floor(Math.random() * (videoW - currentSize - 40)) + 20;
+            const randomY = Math.floor(Math.random() * (videoH - currentSize - 40)) + 20;
+
+            targetBox.style.width = `${(currentSize / videoW) * 100}%`;
+            targetBox.style.height = `${(currentSize / videoH) * 100}%`;
+            targetBox.style.left = `${(randomX / videoW) * 100}%`;
+            targetBox.style.top = `${(randomY / videoH) * 100}%`;
+            targetBox.style.display = 'block';
+
+            // 3, 2, 1 카운트다운
+            for (let i = 3; i > 0; i--) {
+                countdownEl.textContent = i;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            countdownEl.textContent = "찰칵! 📸";
+            await new Promise(r => setTimeout(r, 600));
+            countdownEl.textContent = "";
+
+            // 스냅샷 캡처 및 확대 수행
+            performZoom(randomX, randomY);
+        }
+
+        // 3. 찰칵 후 해당 영역 크롭 및 확대 출력
+        function performZoom(x, y) {
+            videoElement.style.display = 'none';
+            targetBox.style.display = 'none';
+
+            zoomedCanvas.width = currentSize;
+            zoomedCanvas.height = currentSize;
+            const ctx = zoomedCanvas.getContext('2d');
+
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(
+                videoElement, 
+                x, y, currentSize, currentSize, 
+                -currentSize, 0, currentSize, currentSize
+            );
+            ctx.restore();
+
+            zoomedCanvas.style.display = 'block';
+            resetBtn.style.display = 'inline-block';
+        }
+
+        // 4. 다시 하기
         function resetGame() {
-            document.getElementById('zoomed-canvas').style.display = 'none';
+            zoomedCanvas.style.display = 'none';
             videoElement.style.display = 'block';
-            document.getElementById('reset-btn').style.display = 'none';
-            document.getElementById('start-btn').disabled = false;
+            resetBtn.style.display = 'none';
+            startBtn.disabled = false;
+            showCenterPreview();
         }
 
         initCamera();
