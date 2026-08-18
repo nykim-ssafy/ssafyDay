@@ -22,8 +22,7 @@
             position: relative; 
             width: 90vw; 
             max-width: 1200px; 
-            max-height: 75vh; 
-            aspect-ratio: 4 / 3; 
+            height: 75vh; 
             border-radius: 16px; 
             overflow: hidden; 
             background-color: #000; 
@@ -168,11 +167,6 @@
                 });
                 videoElement.srcObject = stream;
                 videoElement.onloadedmetadata = () => { 
-                    const vw = videoElement.videoWidth;
-                    const vh = videoElement.videoHeight;
-                    if (vw && vh) {
-                        container.style.aspectRatio = `${vw} / ${vh}`;
-                    }
                     showCenterPreview(); 
                 };
             } catch (e) {
@@ -237,12 +231,22 @@
             const nativeW = videoElement.videoWidth || 1280;
             const nativeH = videoElement.videoHeight || 960;
             
-            const scaleX = nativeW / containerW;
-            const scaleY = nativeH / containerH;
+            const scale = Math.max(containerW / nativeW, containerH / nativeH);
 
-            const nativeCropSize = currentSize * scaleX;
-            let nativeX = nativeW - (x * scaleX) - nativeCropSize;
-            const nativeY = y * scaleY;
+            const renderedW = nativeW * scale;
+            const renderedH = nativeH * scale;
+
+            const offsetX = (renderedW - containerW) / 2;
+            const offsetY = (renderedH - containerH) / 2;
+
+            const renderX = x + offsetX;
+            const renderY = y + offsetY;
+
+            const sourceLeftRendered = renderedW - renderX - currentSize;
+
+            const nativeX = sourceLeftRendered / scale;
+            const nativeY = renderY / scale;
+            const nativeCropSize = currentSize / scale;
 
             zoomedCanvas.width = nativeCropSize;
             zoomedCanvas.height = nativeCropSize;
